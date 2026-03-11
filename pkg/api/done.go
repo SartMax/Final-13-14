@@ -19,7 +19,7 @@ func DoneHandler(w http.ResponseWriter, r *http.Request) {
 	// Получаем ID из query параметра
 	id := r.URL.Query().Get("id")
 	if id == "" {
-		sendError(w, "Не указан идентификатор")
+		sendError(w, http.StatusBadRequest, "Не указан идентификатор")
 		return
 	}
 
@@ -27,9 +27,9 @@ func DoneHandler(w http.ResponseWriter, r *http.Request) {
 	task, err := db.GetTask(id)
 	if err != nil {
 		if err.Error() == "task not found" {
-			sendError(w, "Задача не найдена")
+			sendError(w, http.StatusNotFound, "Задача не найдена")
 		} else {
-			sendError(w, "Ошибка базы данных: "+err.Error())
+			sendError(w, http.StatusInternalServerError, "Ошибка базы данных: "+err.Error())
 		}
 		return
 	}
@@ -38,7 +38,11 @@ func DoneHandler(w http.ResponseWriter, r *http.Request) {
 	if task.Repeat == "" {
 		err = db.DeleteTask(id)
 		if err != nil {
-			sendError(w, "Ошибка при удалении задачи: "+err.Error())
+			if err.Error() == "task not found" {
+				sendError(w, http.StatusNotFound, "Задача не найдена")
+			} else {
+				sendError(w, http.StatusInternalServerError, "Ошибка при удалении задачи: "+err.Error())
+			}
 			return
 		}
 	} else {
@@ -48,14 +52,18 @@ func DoneHandler(w http.ResponseWriter, r *http.Request) {
 		// Вычисляем следующую дату
 		nextDate, err := NextDate(now, task.Date, task.Repeat)
 		if err != nil {
-			sendError(w, "Ошибка при вычислении следующей даты: "+err.Error())
+			sendError(w, http.StatusBadRequest, "Ошибка при вычислении следующей даты: "+err.Error())
 			return
 		}
 
 		// Обновляем только дату
 		err = db.UpdateTaskDate(id, nextDate)
 		if err != nil {
-			sendError(w, "Ошибка при обновлении даты: "+err.Error())
+			if err.Error() == "task not found" {
+				sendError(w, http.StatusNotFound, "Задача не найдена")
+			} else {
+				sendError(w, http.StatusInternalServerError, "Ошибка при обновлении даты: "+err.Error())
+			}
 			return
 		}
 	}

@@ -8,10 +8,10 @@ import (
 // DateFormat - единая константа для всего пакета api
 const DateFormat = "20060102"
 
-// sendError отправляет ошибку в формате JSON
-func sendError(w http.ResponseWriter, message string) {
+// sendError отправляет ошибку в формате JSON с указанным HTTP статусом
+func sendError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.WriteHeader(http.StatusBadRequest)
+	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
 

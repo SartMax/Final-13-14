@@ -5,6 +5,8 @@ import (
 	"net/http"
 )
 
+const LimitGetTask = 50
+
 // TasksResponse структура ответа
 type TasksResponse struct {
 	Tasks []db.Task `json:"tasks"` // используем Task из db
@@ -24,13 +26,13 @@ func TasksHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	if search != "" {
-		tasks, err = db.GetTasks(50, search)
+		tasks, err = db.GetTasks(LimitGetTask, search)
 	} else {
-		tasks, err = db.GetTasks(50)
+		tasks, err = db.GetTasks(LimitGetTask)
 	}
 
 	if err != nil {
-		sendError(w, "Database error: "+err.Error())
+		sendError(w, http.StatusInternalServerError, "Database error: "+err.Error())
 		return
 	}
 

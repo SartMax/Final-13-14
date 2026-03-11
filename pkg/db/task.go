@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+const DateFormat = "20060102"
+
 type Task struct {
 	ID      string `json:"id" db:"id"`
 	Date    string `json:"date" db:"date"`
@@ -42,7 +44,7 @@ func GetTasks(limit int, search ...string) ([]Task, error) {
 		// Проверяем, является ли поиск датой в формате 02.01.2006
 		if t, err := time.Parse("02.01.2006", searchTerm); err == nil {
 			// Поиск по конкретной дате
-			dbDate := t.Format("20060102")
+			dbDate := t.Format(DateFormat)
 			query := `SELECT id, date, title, comment, repeat FROM scheduler WHERE date = ? ORDER BY date LIMIT ?`
 			rows, err = DB.Query(query, dbDate, limit)
 		} else {

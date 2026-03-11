@@ -32,7 +32,7 @@ func handleGetTask(w http.ResponseWriter, r *http.Request) {
 	// Получаем ID из query параметра
 	id := r.URL.Query().Get("id")
 	if id == "" {
-		sendError(w, "Не указан идентификатор")
+		sendError(w, http.StatusBadRequest, "Не указан идентификатор")
 		return
 	}
 
@@ -40,9 +40,9 @@ func handleGetTask(w http.ResponseWriter, r *http.Request) {
 	task, err := db.GetTask(id)
 	if err != nil {
 		if err.Error() == "task not found" {
-			sendError(w, "Задача не найдена")
+			sendError(w, http.StatusNotFound, "Задача не найдена")
 		} else {
-			sendError(w, "Ошибка базы данных: "+err.Error())
+			sendError(w, http.StatusInternalServerError, "Ошибка базы данных: "+err.Error())
 		}
 		return
 	}
@@ -56,20 +56,20 @@ func handlePostTask(w http.ResponseWriter, r *http.Request) {
 	// Декодируем JSON в структуру Task из пакета db
 	var task db.Task
 	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
-		sendError(w, "Invalid JSON format")
+		sendError(w, http.StatusBadRequest, "Invalid JSON format")
 		return
 	}
 
 	// Валидируем и обрабатываем задачу
 	if err := processTask(&task); err != nil {
-		sendError(w, err.Error())
+		sendError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	// Сохраняем в базу данных, используя функцию AddTask из пакета db
 	id, err := db.AddTask(&task)
 	if err != nil {
-		sendError(w, "Database error: "+err.Error())
+		sendError(w, http.StatusInternalServerError, "Database error: "+err.Error())
 		return
 	}
 
@@ -86,19 +86,19 @@ func handlePutTask(w http.ResponseWriter, r *http.Request) {
 	// Декодируем JSON в структуру Task
 	var task db.Task
 	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
-		sendError(w, "Invalid JSON format")
+		sendError(w, http.StatusBadRequest, "Invalid JSON format")
 		return
 	}
 
 	// Проверяем, что указан ID
 	if task.ID == "" {
-		sendError(w, "Не указан идентификатор задачи")
+		sendError(w, http.StatusBadRequest, "Не указан идентификатор задачи")
 		return
 	}
 
 	// Валидируем и обрабатываем задачу
 	if err := processTask(&task); err != nil {
-		sendError(w, err.Error())
+		sendError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -106,9 +106,35 @@ func handlePutTask(w http.ResponseWriter, r *http.Request) {
 	err := db.UpdateTask(&task)
 	if err != nil {
 		if err.Error() == "task not found" {
-			sendError(w, "Задача не найдена")
+			sendError(w, http.StatusNotFound, "Задача не найдена")
 		} else {
-			sendError(w, "Database error: "+err.Error())
+			sendError(w, http.StatusInternalServerError, "Database error: "+err.Error())
+		}
+		return
+	}
+
+	// Возвращаем пустой JSON при успехе
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{})
+}
+
+// handleDeleteTask обрабатывает DELETE /api/task?id=123
+func handleDeleteTask(w http.ResponseWriter, r *http.Request) {
+	// Получаем ID из query параметра
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		sendError(w, http.StatusBadRequest, "Не указан идентификатор")
+		return
+	}
+
+	// Удаляем задачу из БД
+	err := db.DeleteTask(id)
+	if err != nil {
+		if err.Error() == "task not found" {
+			sendError(w, http.StatusNotFound, "Задача не найдена")
+		} else {
+			sendError(w, http.StatusInternalServerError, "Ошибка базы данных: "+err.Error())
 		}
 		return
 	}
@@ -172,28 +198,4 @@ func isAfter(now, date time.Time) bool {
 	dateDate := time.Date(y2, m2, d2, 0, 0, 0, 0, time.UTC)
 
 	return nowDate.After(dateDate)
-}
-func handleDeleteTask(w http.ResponseWriter, r *http.Request) {
-	// Получаем ID из query параметра
-	id := r.URL.Query().Get("id")
-	if id == "" {
-		sendError(w, "Не указан идентификатор")
-		return
-	}
-
-	// Удаляем задачу из БД
-	err := db.DeleteTask(id)
-	if err != nil {
-		if err.Error() == "task not found" {
-			sendError(w, "Задача не найдена")
-		} else {
-			sendError(w, "Ошибка базы данных: "+err.Error())
-		}
-		return
-	}
-
-	// Возвращаем пустой JSON при успехе
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{})
 }
